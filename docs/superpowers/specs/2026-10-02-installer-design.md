@@ -25,6 +25,9 @@ see a terminal, and the project pays **$0** in running costs.
 - Automatic backups (later; the dashboard says so plainly).
 - Automatic app updates (an **Update** button only).
 - Multi-container apps, macOS and Linux hosts.
+- **Windows 10.** WSL's always-on (`vmIdleTimeout`) and mirrored networking settings are
+  Windows 11 only, and Windows 10 support ended in October 2025. Windows 10 laptops are served
+  later by a bootable-USB installer that reuses the same agent and catalog (SHH-11).
 
 ## 2. MVP apps
 
@@ -82,7 +85,8 @@ agent's local HTTP API, so the agent can be developed and tested on any Linux ma
 The order matters: WSL installs fine with virtualization off but then fails with `0x80370102`.
 
 1. **Detect** (no admin needed):
-   - Build ≥ 19045. If not, stop and point to Windows Update.
+   - Windows 11 22H2 or later (build ≥ 22621). On Windows 10, stop with "SelfHostHub needs
+     Windows 11. A USB installer for this laptop is coming", plus a link to sign up for news.
    - CPU supports VT-x/AMD-V and SLAT (`Win32_Processor`). If not, stop with a plain-English
      "this processor can't run SelfHostHub".
    - Virtualization on: check `Win32_ComputerSystem.HypervisorPresent` **first**, then
@@ -129,14 +133,19 @@ type DnsProvider interface {
 }
 ```
 
-**To confirm before implementation:** that `duckdns.org` and `dedyn.io` are on the Public Suffix
-List, so each user's name counts separately against Let's Encrypt's rate limits.
+**Confirmed 2026-10-02:** `duckdns.org` and `dedyn.io` are both on the Public Suffix List, so each
+user's name counts separately against Let's Encrypt's rate limits
+([viability research](../../../research/viability-2026-10.md)). DuckDNS has a history of multi-hour
+outages, so the wizard offers to set up deSEC as an automatic fallback.
 
 ### 5.2 Reaching the apps from other devices
 
-- **Windows 11:** WSL `networkingMode=mirrored` in `.wslconfig`.
-- **Windows 10:** `netsh interface portproxy` maps 80/443 to the WSL IP, plus an inbound firewall
-  rule for the Private profile only. The proxy target is refreshed whenever the WSL IP changes.
+- WSL `networkingMode=mirrored` in `.wslconfig` (Windows 11 22H2+), plus an inbound firewall
+  rule for the Private profile only. If mirrored mode fails its self-test, fall back to `netsh
+  interface portproxy` for 80/443 and refresh it whenever the WSL IP changes.
+- **"Can my phone reach it?" check:** the dashboard resolves the name through the router's DNS.
+  If the router hides home-network answers (DNS-rebinding protection), it shows a fix guide for
+  common routers and the IP fallback links.
 - **Fallback:** if DNS can't be reached, the dashboard shows `http://<LAN-IP>:<port>` links
   (Actual Budget is marked "needs internet name").
 
@@ -191,7 +200,7 @@ Each error the user can see has a plain-English message and a next action.
 | No internet during install | "Connect to the internet to install. Apps work offline afterwards." | Try again |
 | Disk full | "Needs 2 GB free. You have 0.8 GB." | Open Storage settings |
 | Health check timeout | "Actual Budget didn't start." | Restart · Copy details for help |
-| DNS provider down | "Couldn't reach DuckDNS. Apps still work at …" | Retry · Switch to deSEC |
+| DNS provider down | (silent) automatic failover to deSEC if configured; otherwise "Couldn't reach DuckDNS. Apps still work at …" | Retry · Set up deSEC |
 | Renewal failing | Warning 14 days before expiry | Fix now |
 | Agent not responding | "SelfHostHub's engine stopped." | Restart engine |
 
@@ -202,7 +211,9 @@ tokens and IPs redacted.
 
 - A scheduled task at system startup (whether or not anyone is logged on) runs `wsl -d selfhosthub`,
   and the agent starts its apps.
-- `.wslconfig`: `vmIdleTimeout=-1`.
+- `.wslconfig`: `vmIdleTimeout=-1`. This is **not trusted on its own**, because WSL has been reported
+  to stop services anyway (microsoft/WSL#13291). A Windows-side **watchdog** in the host service checks
+  the agent's `/health` every 30 s and restarts the distro after 3 misses.
 - `powercfg`: no sleep on AC power, and closing the lid does nothing on AC. The user's settings are
   restored on uninstall.
 - Target: all apps healthy within 2 minutes of the laptop powering on.
@@ -234,7 +245,7 @@ blocks non-technical users.
 | Agent unit | Manifest validation, Caddy config generation, `DnsProvider` against a fake server, renewal timing | CI, every PR |
 | Agent integration | Boot the agent with Docker, install all 5 apps, health checks, Let's Encrypt **staging** certificate through a test DuckDNS name (secret) | CI Linux, every PR |
 | Preflight unit | Table-driven tests over faked CIM/`wsl` outputs (hypervisor present with the firmware flag false, legacy BIOS, old build, …) | CI Windows (no WSL needed) |
-| Manual release checklist | Win10 22H2 + Win11; Intel + AMD; virtualization off → on; reboot survival; iPhone + Android + PC open every app over HTTPS | Real laptops; GitHub runners can't run WSL2 |
+| Manual release checklist | Win11 22H2+ on ≥2 laptop models; Intel + AMD; virtualization off → on; reboot survival; iPhone + Android + PC open every app over HTTPS | Real laptops; GitHub runners can't run WSL2 |
 
 ## 13. Build order
 
@@ -245,7 +256,7 @@ Each milestone can be demonstrated on its own.
 3. Distro image built in CI and imported by hand on Windows.
 4. Preflight wizard.
 5. Dashboard.
-6. Keep-alive and networking (mirrored on Windows 11, portproxy on Windows 10).
+6. Keep-alive, watchdog and networking (mirrored mode, portproxy fallback, phone-reach check).
 7. Beta: signed installer, about 5 testers on real old laptops.
 
 ## 14. Repo layout
@@ -261,6 +272,8 @@ research/   app catalog research
 
 ## 15. Open items
 
-- Confirm `duckdns.org` and `dedyn.io` on the Public Suffix List (affects rate limits).
 - Confirm that Actual Budget works behind Caddy on a subdomain with no further headers.
 - SignPath Foundation application: start alongside milestone 1, because approval takes weeks.
+- Backups are a non-goal for the MVP, but the viability research recommends pulling a simple USB
+  backup into the beta. Decide before SHH-10.
+- Validate with about 20 real non-technical users before growing the catalog beyond 5 apps.
