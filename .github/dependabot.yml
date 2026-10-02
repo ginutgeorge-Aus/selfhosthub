@@ -1,0 +1,24 @@
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    # Wait a week before adopting a fresh release (supply-chain: most
+    # malicious package versions are caught and yanked within days).
+    cooldown:
+      default-days: 7
+    # Conventional-Commit title so the PR-title check + release-please accept it.
+    commit-message:
+      prefix: "ci"
+    open-pull-requests-limit: 5
+    groups:
+      actions:
+        patterns:
+          - "*"
+
+  # Enable each block once its directory exists (Dependabot errors on missing dirs):
+  # - package-ecosystem: "gomod"   directory: "/agent"            prefix: "deps"
+  # - package-ecosystem: "cargo"   directory: "/app/src-tauri"    prefix: "deps"
+  # - package-ecosystem: "npm"     directory: "/app"              prefix: "deps"

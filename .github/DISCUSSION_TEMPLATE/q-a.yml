@@ -1,0 +1,45 @@
+title: "[Q] "
+labels: ["question"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Ask how to use, configure or use SelfHostHub. Check the [documentation](https://github.com/ginutgeorge-Aus/selfhosthub/tree/main/docs) first.
+        Found a bug? [Open an issue](https://github.com/ginutgeorge-Aus/selfhosthub/issues/new/choose) instead.
+        **Security vulnerabilities:** report privately per [SECURITY.md](https://github.com/ginutgeorge-Aus/selfhosthub/blob/main/SECURITY.md).
+  - type: textarea
+    id: question
+    attributes:
+      label: Question
+      placeholder: How do I ...?
+    validations:
+      required: true
+  - type: textarea
+    id: tried
+    attributes:
+      label: What you tried
+      description: Steps, docs pages read, error messages. Remove tokens and personal information.
+    validations:
+      required: false
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Setup wizard / preflight
+        - Turning on virtualization (BIOS)
+        - Installing an app
+        - App catalog (new app request)
+        - Opening apps from other devices
+        - HTTPS / DuckDNS / deSEC
+        - Updates
+        - Other
+    validations:
+      required: false
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Release tag or commit, if self-hosting.
+    validations:
+      required: false

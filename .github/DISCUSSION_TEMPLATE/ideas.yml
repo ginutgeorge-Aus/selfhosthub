@@ -1,0 +1,42 @@
+title: "[Idea] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Share an early idea to discuss. Once scoped and agreed, it becomes a [feature request](https://github.com/ginutgeorge-Aus/selfhosthub/issues/new?template=feature_request.yml).
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What is hard or missing today, and who does it affect (for example, a family setting up their first app)?
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: Idea
+      description: How you imagine it working.
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Setup wizard / preflight
+        - Turning on virtualization (BIOS)
+        - Installing an app
+        - App catalog (new app request)
+        - Opening apps from other devices
+        - HTTPS / DuckDNS / deSEC
+        - Updates
+        - Other
+    validations:
+      required: false
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives / workarounds
+    validations:
+      required: false
