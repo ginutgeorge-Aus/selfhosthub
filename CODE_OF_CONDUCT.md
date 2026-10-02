@@ -33,9 +33,9 @@ Examples of unacceptable behavior include:
 - Public or private harassment
 - Publishing others' private information, such as a physical or email address,
   without their explicit permission
-- Because this software handles member personal, pastoral, and financial data:
-  sharing, exporting, or misusing any such data outside authorized channels, or
-  deliberately introducing insecure or malicious code
+- Because this software runs on people's home laptops and holds their personal
+  files, budgets and media: deliberately introducing insecure or malicious code,
+  or misusing any user data shared in issues or logs
 - Other conduct which could reasonably be considered inappropriate in a
   professional setting
 

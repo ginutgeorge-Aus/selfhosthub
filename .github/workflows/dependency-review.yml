@@ -1,9 +1,8 @@
 name: Dependency review
 
 # Blocks PRs that add a dependency with a known vulnerability (moderate+) or a
-# licence outside the AGPL-3.0-compatible allowlist below.
-# CodeQL runs via the repo's code-scanning "default setup", not a workflow.
-# CodeQL runs via repo "default setup" (Settings → Code security), not a workflow.
+# licence outside the GPL-3.0-compatible allowlist below (AGPL is allowed:
+# GPL-3.0 §13 permits combining with AGPL-3.0 code).
 on:
   pull_request:
     branches: [main]
