@@ -1,0 +1,26 @@
+# Go
+/agent/bin/
+*.test
+*.out
+coverage.*
+
+# Rust / Tauri
+/app/src-tauri/target/
+/app/src-tauri/gen/
+
+# Node (Tauri frontend)
+node_modules/
+/app/dist/
+
+# Distro build output
+/distro/out/
+*.tar.gz
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.log
+.env
+.env.*
