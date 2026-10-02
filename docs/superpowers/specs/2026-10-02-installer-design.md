@@ -217,6 +217,17 @@ tokens and IPs redacted.
 - `powercfg`: no sleep on AC power, and closing the lid does nothing on AC. The user's settings are
   restored on uninstall.
 - Target: all apps healthy within 2 minutes of the laptop powering on.
+- **Battery care:** a laptop on charge 24/7 wears its battery and can swell it. The wizard detects
+  the maker and shows the charge-limit step: Lenovo Vantage "Conservation mode", Dell "Primarily AC
+  use", ASUS "Battery Health Charging", HP "Battery Care". Where a charge limit can be set from
+  Windows (WMI), offer a one-click button.
+- **Power modes** (Settings):
+  - **Always on** (default)
+  - **Daytime only**: sleep from 1am to 6am by default, user-adjustable, with a wake timer through
+    a scheduled task with `WakeToRun`. Apps are unreachable while the laptop sleeps, and the dashboard
+    says so.
+  - No Wake-on-LAN: it's unreliable over Wi-Fi.
+- **Placement tip** in the wizard: plugged in, lid closed is fine, keep it somewhere with airflow.
 
 ## 10. Updates
 
