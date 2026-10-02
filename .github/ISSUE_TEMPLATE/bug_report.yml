@@ -1,0 +1,77 @@
+name: Bug report
+description: Something in SelfHostHub is broken or behaving unexpectedly
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. For **security vulnerabilities**, do NOT open an issue.
+        Report privately as described in [SECURITY.md](https://github.com/ginutgeorge-Aus/selfhosthub/blob/main/SECURITY.md).
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: Describe the problem and what you expected instead.
+      placeholder: When I clicked "Replace YNAB", the card said "Didn't start".
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open SelfHostHub
+        2. Click ...
+        3. See error
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Setup wizard / preflight
+        - Turning on virtualization (BIOS)
+        - Installing an app
+        - Opening an app from a phone or other PC
+        - HTTPS / DuckDNS / deSEC
+        - Updates
+        - Laptop restarts / sleep
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: app
+    attributes:
+      label: Which app (if any)
+      placeholder: Actual Budget
+    validations:
+      required: false
+  - type: input
+    id: version
+    attributes:
+      label: SelfHostHub version
+      description: Shown under Settings → About.
+      placeholder: v0.1.0
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Laptop details
+      description: Windows version, laptop make/model, RAM, and the device you opened the app from.
+      placeholder: |
+        Windows 10 22H2, Dell Latitude E7450, 8 GB RAM
+        Opened from: Chrome on iPhone
+    validations:
+      required: false
+  - type: textarea
+    id: logs
+    attributes:
+      label: Details
+      description: >-
+        Paste the text from "Copy details for help". Remove tokens and
+        personal information before pasting.
+      render: shell
+    validations:
+      required: false
