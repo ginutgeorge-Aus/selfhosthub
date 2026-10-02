@@ -36,11 +36,14 @@ offline, opens in a browser, and needs no client app.
 
 | Card | App | Subdomain | Needs HTTPS |
 |---|---|---|---|
-| Replace Adobe Acrobat | Stirling-PDF | `pdf` | no |
+| Replace Smallpdf / iLovePDF | BentoPDF | `pdf` | no (files processed in the browser) |
 | Replace YNAB | Actual Budget | `budget` | **yes** (browser secure-context APIs) |
 | Replace Plex | Jellyfin | `tv` | no |
 | Replace Todoist | Vikunja | `tasks` | no |
 | Replace Spotify (your music) | Navidrome | `music` | no |
+
+BentoPDF was picked over Stirling-PDF because it has a simpler tile layout and uses tens of MB of
+RAM instead of 1–2 GB. Stirling-PDF (OCR, redaction) becomes a later "PDF Pro" app.
 
 Media cards say plainly that they play **your own** files and don't replace the content catalog.
 

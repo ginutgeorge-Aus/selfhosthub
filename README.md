@@ -17,7 +17,7 @@ SelfHostHub is a free, open-source Windows app for people who aren't technical. 
 
 | Replaces | With |
 |---|---|
-| Adobe Acrobat | Stirling-PDF |
+| Smallpdf / iLovePDF | BentoPDF |
 | YNAB | Actual Budget |
 | Plex Pass | Jellyfin |
 | Todoist | Vikunja |
