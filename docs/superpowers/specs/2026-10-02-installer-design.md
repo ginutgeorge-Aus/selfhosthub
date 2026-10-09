@@ -36,7 +36,7 @@ offline, opens in a browser, and needs no client app.
 
 | Card | App | Subdomain | Needs HTTPS |
 |---|---|---|---|
-| Replace Smallpdf / iLovePDF | BentoPDF | `pdf` | no (files processed in the browser) |
+| Replace Smallpdf / iLovePDF | BentoPDF | `pdf` | no (files processed in the browser; run its air-gapped build with bundled WASM, not the CDN default) |
 | Replace YNAB | Actual Budget | `budget` | **yes** (browser secure-context APIs) |
 | Replace Plex | Jellyfin | `tv` | no |
 | Replace Todoist | Vikunja | `tasks` | no |
@@ -122,10 +122,13 @@ on with no BIOS visit.
   pastes the token. **Advanced → Use deSEC instead** is the alternative.
 - The agent points `<name>.duckdns.org` at the laptop's LAN IP. Every subdomain resolves to the same IP.
 - **Wildcard only:** the agent requests one certificate for `*.<name>.duckdns.org` through DNS-01.
-  DuckDNS holds one TXT value at a time, so the bare name is not included. The dashboard lives at
-  `home.<name>.duckdns.org`.
-- The private key is generated in the agent and never leaves the laptop. Renewal happens at 60
-  days, with a dashboard warning 14 days before expiry if renewal keeps failing.
+  DuckDNS holds one TXT value at a time, so the bare name is not included. The wildcard covers app
+  subdomains only. The dashboard is the desktop app, not a LAN web page (see section 11).
+- The private key is generated in the agent and never leaves the laptop. Renewal starts when
+  one third of the certificate's lifetime remains (about 30 days for a 90-day certificate, and it
+  tracks Let's Encrypt's shorter lifetimes as they roll out), retried daily. The dashboard warns
+  14 days before expiry, or at half the remaining lifetime if that is sooner, when renewal keeps
+  failing.
 - When the LAN IP changes, the agent calls `SetIP` within 5 minutes.
 
 ```go
@@ -139,18 +142,26 @@ type DnsProvider interface {
 **Confirmed 2026-10-02:** `duckdns.org` and `dedyn.io` are both on the Public Suffix List, so each
 user's name counts separately against Let's Encrypt's rate limits
 ([viability research](../../../research/viability-2026-10.md)). DuckDNS has a history of multi-hour
-outages, so the wizard offers to set up deSEC as an automatic fallback.
+outages. deSEC cannot take over a `duckdns.org` name, because it only controls `dedyn.io`. So deSEC
+is an alternative provider chosen at setup (a different hostname and certificate), not an automatic
+failover. During a DuckDNS outage, apps stay reachable through the LAN-IP fallback links (5.2).
 
 ### 5.2 Reaching the apps from other devices
 
-- WSL `networkingMode=mirrored` in `.wslconfig` (Windows 11 22H2+), plus an inbound firewall
-  rule for the Private profile only. If mirrored mode fails its self-test, fall back to `netsh
+- WSL `networkingMode=mirrored` in `.wslconfig` (Windows 11 22H2+), plus an inbound Windows Firewall rule for the Private profile and an inbound allow for the WSL VM
+  in the Hyper-V firewall (`Set-NetFirewallHyperVVMSetting -Name '{40E0AC32-46A5-438A-A0B2-2B479E8F2E90}'
+  -DefaultInboundAction Allow`), since mirrored mode is otherwise filtered there. If the active
+  network is classified **Public**, preflight offers to switch it to Private; the rule stays
+  Private-only. If mirrored mode fails its self-test, fall back to `netsh
   interface portproxy` for 80/443 and refresh it whenever the WSL IP changes.
-- **"Can my phone reach it?" check:** the dashboard resolves the name through the router's DNS.
-  If the router hides home-network answers (DNS-rebinding protection), it shows a fix guide for
-  common routers and the IP fallback links.
-- **Fallback:** if DNS can't be reached, the dashboard shows `http://<LAN-IP>:<port>` links
-  (Actual Budget is marked "needs internet name").
+- **"Can my phone reach it?" check:** run from the phone, not the host. The dashboard shows a QR code
+  for the app URL; the agent confirms success when Caddy logs a request from another LAN address.
+  If nothing arrives, it shows the likely causes (router DNS-rebinding protection, Wi-Fi client
+  isolation, firewall) with a fix guide for common routers and the IP fallback links.
+- **Fallback:** Caddy also serves each app over plain HTTP on its own LAN port (for example
+  `http://<LAN-IP>:8101`), opened in the same firewall rules, so the links work when DNS can't be
+  reached. Actual Budget needs a secure context, so it has no fallback and is marked "needs
+  internet name" (accepted MVP limitation).
 
 ### 5.3 Offline behavior
 
@@ -168,7 +179,7 @@ name: Actual Budget
 replaces: [YNAB, Monarch Money]
 pitch: "Plan your money. Your data stays on your laptop."
 subdomain: budget
-image: actualbudget/actual-server:<pinned>
+image: actualbudget/actual-server@sha256:<digest>   # tag kept in a comment for humans
 port: 5006
 ram_mb: 512
 needs_https: true
@@ -178,7 +189,8 @@ media_folders: []
 ```
 
 **Validation rules** (in CI and in the agent at load time):
-- The image tag is pinned; `latest` is rejected.
+- The image is pinned by immutable digest (`@sha256:...`); tags, including `latest`, are rejected.
+  CI resolves and records the digest, so the signed catalog covers the exact image bytes.
 - The subdomain is unique.
 - `ram_mb` is set.
 - Exactly one container.
@@ -203,7 +215,7 @@ Each error the user can see has a plain-English message and a next action.
 | No internet during install | "Connect to the internet to install. Apps work offline afterwards." | Try again |
 | Disk full | "Needs 2 GB free. You have 0.8 GB." | Open Storage settings |
 | Health check timeout | "Actual Budget didn't start." | Restart · Copy details for help |
-| DNS provider down | (silent) automatic failover to deSEC if configured; otherwise "Couldn't reach DuckDNS. Apps still work at …" | Retry · Set up deSEC |
+| DNS provider down | "Couldn't reach DuckDNS. Apps still work at …" (LAN-IP links) | Retry · Switch to deSEC |
 | Renewal failing | Warning 14 days before expiry | Fix now |
 | Agent not responding | "SelfHostHub's engine stopped." | Restart engine |
 
@@ -212,9 +224,13 @@ tokens and IPs redacted.
 
 ## 9. Keep-alive
 
-- A scheduled task at system startup (whether or not anyone is logged on) runs `wsl -d selfhosthub`,
-  and the agent starts its apps.
-- `.wslconfig`: `vmIdleTimeout=-1`. This is **not trusted on its own**, because WSL has been reported
+- A scheduled task registered for the installing Windows user (the distro and `.wslconfig` are
+  per-user), triggered at startup and at logon, runs `wsl -d selfhosthub`. It uses the S4U logon
+  type, so it runs whether or not that user is logged on without storing a password. The agent then
+  starts its apps.
+- `.wslconfig` is user-global, so it affects every WSL distro the user has. The installer backs up
+  the existing file, merges only the keys it needs (`vmIdleTimeout=-1`, `networkingMode=mirrored`),
+  tells the user if other distros exist, and restores the original on uninstall. `vmIdleTimeout=-1`. This is **not trusted on its own**, because WSL has been reported
   to stop services anyway (microsoft/WSL#13291). A Windows-side **watchdog** in the host service checks
   the agent's `/health` every 30 s and restarts the distro after 3 misses.
 - `powercfg`: no sleep on AC power, and closing the lid does nothing on AC. The user's settings are
@@ -227,8 +243,10 @@ tokens and IPs redacted.
 - **Power modes** (Settings):
   - **Always on** (default)
   - **Daytime only**: sleep from 1am to 6am by default, user-adjustable, with a wake timer through
-    a scheduled task with `WakeToRun`. Apps are unreachable while the laptop sleeps, and the dashboard
-    says so.
+    a scheduled task with `WakeToRun`. `WakeToRun` is unreliable on Modern Standby (S0) laptops, so
+    preflight reads `powercfg /a` and offers this mode only when S3 sleep is available; otherwise the
+    option is shown as unavailable with the reason. Apps are unreachable while the laptop sleeps, and
+    the dashboard says so.
   - No Wake-on-LAN: it's unreliable over Wi-Fi.
 - **Placement tip** in the wizard: plugged in, lid closed is fine, keep it somewhere with airflow.
 
@@ -247,7 +265,8 @@ blocks non-technical users.
 ## 11. Security
 
 - The agent API listens on `127.0.0.1` only and requires a random token stored in the user's profile.
-- The dashboard is not exposed on the LAN in the MVP; only app subdomains are.
+- The dashboard is the desktop app and talks to the agent over `127.0.0.1`. No dashboard route exists
+  in Caddy, so it is not exposed on the LAN in the MVP; only app subdomains are.
 - The firewall rule covers the Private profile only.
 - The DNS token and TLS key are stored with Windows DPAPI on the host and as `0600` files inside the distro.
 - No router port forwarding, ever, in the MVP.
@@ -286,6 +305,7 @@ research/   app catalog research
 
 ## 15. Open items
 
+- Confirm that BentoPDF's air-gapped build works fully offline (no CDN fetches).
 - Confirm that Actual Budget works behind Caddy on a subdomain with no further headers.
 - SignPath Foundation application: start alongside milestone 1, because approval takes weeks.
 - Backups are a non-goal for the MVP, but the viability research recommends pulling a simple USB
