@@ -17,7 +17,7 @@ SelfHostHub is a free, open-source Windows app for people who aren't technical. 
 
 | Replaces | With |
 |---|---|
-| Adobe Acrobat | Stirling-PDF |
+| Smallpdf / iLovePDF | BentoPDF |
 | YNAB | Actual Budget |
 | Plex Pass | Jellyfin |
 | Todoist | Vikunja |
@@ -27,7 +27,7 @@ All of them run on your home network and keep working without internet.
 
 ## Requirements
 
-- Windows 10 22H2 or Windows 11
+- Windows 11 22H2 or later (a USB installer for Windows 10 laptops is planned)
 - 8 GB RAM recommended, 40 GB free disk space
 - A processor with virtualization support (most laptops from 2012 onwards)
 
