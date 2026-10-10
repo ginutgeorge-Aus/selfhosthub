@@ -57,8 +57,8 @@ Windows host
 │   └─ Calls hub-agent over http://127.0.0.1:<agent-port> with a per-install token
 └─ WSL2 distro "selfhosthub" (our minimal Debian rootfs)
     ├─ hub-agent (Go): app lifecycle, certificates, DNS updates, health checks
-    ├─ Docker Engine (not Docker Desktop)
-    ├─ Caddy: <sub>.<name>.duckdns.org → app container, wildcard TLS
+    ├─ Docker Engine (not Docker Desktop), started by systemd (`/etc/wsl.conf` sets `[boot] systemd=true`)
+    ├─ Caddy: <sub>.<zone> → app container, wildcard TLS (<zone> = the selected provider's name, e.g. <name>.duckdns.org or <name>.dedyn.io)
     └─ App containers
 
 External, free, third-party: DuckDNS (default) or deSEC (backup), and Let's Encrypt
@@ -148,11 +148,13 @@ failover. During a DuckDNS outage, apps stay reachable through the LAN-IP fallba
 
 ### 5.2 Reaching the apps from other devices
 
-- WSL `networkingMode=mirrored` in `.wslconfig` (Windows 11 22H2+), plus an inbound Windows Firewall rule for the Private profile and an inbound allow for the WSL VM
-  in the Hyper-V firewall (`Set-NetFirewallHyperVVMSetting -Name '{40E0AC32-46A5-438A-A0B2-2B479E8F2E90}'
-  -DefaultInboundAction Allow`), since mirrored mode is otherwise filtered there. If the active
-  network is classified **Public**, preflight offers to switch it to Private; the rule stays
-  Private-only. If mirrored mode fails its self-test, fall back to `netsh
+- WSL `networkingMode=mirrored` in `.wslconfig` (Windows 11 22H2+), plus an inbound Windows Firewall rule for the Private profile, limited to the local subnet and TCP
+  80/443 plus the app fallback ports. In the Hyper-V firewall it adds scoped allow rules
+  (`New-NetFirewallHyperVRule` with `-Direction Inbound -Action Allow -LocalPorts ... -VMCreatorId
+  '{40E0AC32-46A5-438A-A0B2-2B479E8F2E90}'`) for those ports only, never a creator-wide default
+  allow, because that ID covers every WSL distro on the machine. If the active network is
+  classified **Public**, preflight asks the user to confirm switching it to Private (with a plain
+  explanation) and never opens the Public profile. If mirrored mode fails its self-test, fall back to `netsh
   interface portproxy` for 80/443 and refresh it whenever the WSL IP changes.
 - **"Can my phone reach it?" check:** run from the phone, not the host. The dashboard shows a QR code
   for the app URL; the agent confirms success when Caddy logs a request from another LAN address.
@@ -201,7 +203,7 @@ media_folders: []
 2. Pull the image, with progress shown in MB.
 3. Create `/srv/shh/apps/<id>/` and start the container. Media folders the user picked are mounted
    read-only from `/mnt/c/...`.
-4. Add the Caddy route `<sub>.<name>.duckdns.org`.
+4. Add the Caddy route `<sub>.<zone>`, where `<zone>` is the hostname of the DNS provider chosen at setup (DuckDNS or deSEC). Routes, certificate names, QR links and fallback links are all generated from it.
 5. Poll the health check, then flip the card to **Open** and show a QR code.
 
 **Uninstall** asks "Keep my data?" with **Yes** as the default.
@@ -233,8 +235,9 @@ tokens and IPs redacted.
   tells the user if other distros exist, and restores the original on uninstall. `vmIdleTimeout=-1`. This is **not trusted on its own**, because WSL has been reported
   to stop services anyway (microsoft/WSL#13291). A Windows-side **watchdog** in the host service checks
   the agent's `/health` every 30 s and restarts the distro after 3 misses.
-- `powercfg`: no sleep on AC power, and closing the lid does nothing on AC. The user's settings are
-  restored on uninstall.
+- `powercfg` (**Always on** mode only): no sleep on AC power, and closing the lid does nothing on AC.
+  Switching to **Daytime only** restores the user's original policy and applies the sleep schedule.
+  The user's original settings are restored on uninstall.
 - Target: all apps healthy within 2 minutes of the laptop powering on.
 - **Battery care:** a laptop on charge 24/7 wears its battery and can swell it. The wizard detects
   the maker and shows the charge-limit step: Lenovo Vantage "Conservation mode", Dell "Primarily AC
@@ -255,7 +258,7 @@ tokens and IPs redacted.
 | What | Mechanism |
 |---|---|
 | Windows app | Tauri updater from GitHub Releases, with a "restart to update" prompt |
-| Distro | Shipped with app releases; replaced in place, app data kept |
+| Distro | Shipped with app releases. App data lives on a second WSL-attached VHDX (`%LOCALAPPDATA%\SelfHostHub\data.vhdx`, mounted at `/srv/shh`), separate from the replaceable system distro, so replacing the distro keeps it |
 | Catalog | Signed `index.json` fetched daily |
 | Apps | An **Update** button appears after CI passes for a new pinned tag. The data folder is copied first so a failed update can be rolled back. |
 
@@ -305,6 +308,9 @@ research/   app catalog research
 
 ## 15. Open items
 
+- Verify the startup task: WSL's support for starting a distro with no interactive user session is
+  unconfirmed (microsoft/WSL#7022). Prototype on real laptops; fall back to an at-logon trigger plus
+  Windows auto-logon guidance if S4U does not work. Tracked in a GitHub issue.
 - Confirm that BentoPDF's air-gapped build works fully offline (no CDN fetches).
 - Confirm that Actual Budget works behind Caddy on a subdomain with no further headers.
 - SignPath Foundation application: start alongside milestone 1, because approval takes weeks.

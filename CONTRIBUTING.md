@@ -12,7 +12,7 @@ The project is in the design phase. Once code lands, you'll need:
 
 - **Go** (latest stable) for `agent/`, the service that runs inside WSL
 - **Rust + Node** for `app/`, the Tauri Windows app
-- **Windows 10 22H2 or 11 with WSL2** for end-to-end testing. The agent alone runs on any Linux machine with Docker.
+- **Windows 11 22H2 or later with WSL2** for end-to-end testing (Windows 10 is unsupported in the MVP). The agent alone runs on any Linux machine with Docker.
 
 ## Before you start
 
