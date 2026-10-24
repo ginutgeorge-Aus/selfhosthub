@@ -23,7 +23,7 @@ SelfHostHub is a free, open-source Windows app for people who aren't technical. 
 | Todoist | Vikunja |
 | Spotify (your own music) | Navidrome |
 
-All of them run on your home network and keep working without internet.
+All of them run on your home network. Apart from Actual Budget, they keep working without internet. Actual Budget needs its web name (the DNS lookup) to resolve, so it can stop working during a DNS outage.
 
 ## Requirements
 

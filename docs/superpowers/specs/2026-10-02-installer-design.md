@@ -144,7 +144,8 @@ user's name counts separately against Let's Encrypt's rate limits
 ([viability research](../../../research/viability-2026-10.md)). DuckDNS has a history of multi-hour
 outages. deSEC cannot take over a `duckdns.org` name, because it only controls `dedyn.io`. So deSEC
 is an alternative provider chosen at setup (a different hostname and certificate), not an automatic
-failover. During a DuckDNS outage, apps stay reachable through the LAN-IP fallback links (5.2).
+failover. During a DuckDNS outage, apps with a LAN-IP fallback link stay reachable (5.2); Actual
+Budget does not.
 
 ### 5.2 Reaching the apps from other devices
 
@@ -153,9 +154,14 @@ failover. During a DuckDNS outage, apps stay reachable through the LAN-IP fallba
   (`New-NetFirewallHyperVRule` with `-Direction Inbound -Action Allow -LocalPorts ... -VMCreatorId
   '{40E0AC32-46A5-438A-A0B2-2B479E8F2E90}'`) for those ports only, never a creator-wide default
   allow, because that ID covers every WSL distro on the machine. If the active network is
-  classified **Public**, preflight asks the user to confirm switching it to Private (with a plain
-  explanation) and never opens the Public profile. If mirrored mode fails its self-test, fall back to `netsh
-  interface portproxy` for 80/443 and refresh it whenever the WSL IP changes.
+  classified **Public**, preflight keeps it Public by default. It offers to switch it to Private
+  only after the user confirms, in plain words, that this is a trusted home network (never hotel or
+  office Wi-Fi), and it never opens the Public profile. The Hyper-V rules are port-scoped, not
+  distro-scoped, and WSL distros share one network namespace. Preflight therefore stops if another
+  distro already listens on an allowed port, and tells the user that any distro that later binds
+  one of those ports would be reachable from the LAN. If mirrored mode fails its self-test, fall
+  back to `netsh interface portproxy` with one mapping for each exposed port (80, 443 and every app
+  fallback port) and refresh them all whenever the WSL IP changes.
 - **"Can my phone reach it?" check:** run from the phone, not the host. The dashboard shows a QR code
   for the app URL; the agent confirms success when Caddy logs a request from another LAN address.
   If nothing arrives, it shows the likely causes (router DNS-rebinding protection, Wi-Fi client
@@ -169,7 +175,8 @@ failover. During a DuckDNS outage, apps stay reachable through the LAN-IP fallba
 
 Installing an app needs internet. Running apps need no internet while the certificate is valid
 (up to 90 days), except for the DNS lookup of the name itself; that's why the fallback links
-exist.
+exist. Actual Budget has no fallback link, so it needs its hostname to resolve; it is the one app
+that can stop working during a DNS outage (accepted MVP limitation, issue #4).
 
 ## 6. App catalog
 
@@ -214,10 +221,10 @@ Each error the user can see has a plain-English message and a next action.
 
 | Cause | Message | Action |
 |---|---|---|
-| No internet during install | "Connect to the internet to install. Apps work offline afterwards." | Try again |
+| No internet during install | "Connect to the internet to install. Apps work offline afterwards, except Actual Budget, which needs its web name to resolve." | Try again |
 | Disk full | "Needs 2 GB free. You have 0.8 GB." | Open Storage settings |
 | Health check timeout | "Actual Budget didn't start." | Restart · Copy details for help |
-| DNS provider down | "Couldn't reach DuckDNS. Apps still work at …" (LAN-IP links) | Retry · Switch to deSEC |
+| DNS provider down | "Couldn't reach DuckDNS. Apps with fallback links still work at …" (LAN-IP links) | Retry · Switch to deSEC |
 | Renewal failing | Warning 14 days before expiry | Fix now |
 | Agent not responding | "SelfHostHub's engine stopped." | Restart engine |
 
@@ -227,14 +234,19 @@ tokens and IPs redacted.
 ## 9. Keep-alive
 
 - A scheduled task registered for the installing Windows user (the distro and `.wslconfig` are
-  per-user), triggered at startup and at logon, runs `wsl -d selfhosthub`. It uses the S4U logon
-  type, so it runs whether or not that user is logged on without storing a password. The agent then
-  starts its apps.
+  per-user), triggered at startup and at logon, runs elevated, uses the S4U logon type (so it runs
+  whether or not that user is logged on, without storing a password), and does two steps in order:
+  1. `wsl --mount --vhd %LOCALAPPDATA%\SelfHostHub\data.vhdx --bare` re-attaches the data disk,
+     because WSL detaches mounted disks whenever it shuts down.
+  2. `wsl -d selfhosthub` starts the distro. A systemd mount unit mounts the disk by filesystem
+     label at `/srv/shh`, and Docker and the agent start only after that mount succeeds
+     (`RequiresMountsFor=/srv/shh`), so apps never write to an unmounted directory.
 - `.wslconfig` is user-global, so it affects every WSL distro the user has. The installer backs up
   the existing file, merges only the keys it needs (`vmIdleTimeout=-1`, `networkingMode=mirrored`),
-  tells the user if other distros exist, and restores the original on uninstall. `vmIdleTimeout=-1`. This is **not trusted on its own**, because WSL has been reported
-  to stop services anyway (microsoft/WSL#13291). A Windows-side **watchdog** in the host service checks
-  the agent's `/health` every 30 s and restarts the distro after 3 misses.
+  tells the user if other distros exist, and restores the original on uninstall.
+- `vmIdleTimeout=-1` is **not trusted on its own**, because WSL has been reported to stop services
+  anyway (microsoft/WSL#13291). A Windows-side **watchdog** in the host service checks the agent's
+  `/health` every 30 s and restarts the distro (re-attaching the data disk first) after 3 misses.
 - `powercfg` (**Always on** mode only): no sleep on AC power, and closing the lid does nothing on AC.
   Switching to **Daytime only** restores the user's original policy and applies the sleep schedule.
   The user's original settings are restored on uninstall.
@@ -260,7 +272,7 @@ tokens and IPs redacted.
 | Windows app | Tauri updater from GitHub Releases, with a "restart to update" prompt |
 | Distro | Shipped with app releases. App data lives on a second WSL-attached VHDX (`%LOCALAPPDATA%\SelfHostHub\data.vhdx`, mounted at `/srv/shh`), separate from the replaceable system distro, so replacing the distro keeps it |
 | Catalog | Signed `index.json` fetched daily |
-| Apps | An **Update** button appears after CI passes for a new pinned tag. The data folder is copied first so a failed update can be rolled back. |
+| Apps | An **Update** button appears after CI passes for a new pinned tag. The agent stops the app's container first, so databases such as Vikunja's SQLite are quiescent, then copies the data folder and verifies the copy before replacing the image. A failed update restores that copy. |
 
 **Code signing:** apply to the SignPath Foundation for free OSS signing. Without it, SmartScreen
 blocks non-technical users.
@@ -310,7 +322,7 @@ research/   app catalog research
 
 - Verify the startup task: WSL's support for starting a distro with no interactive user session is
   unconfirmed (microsoft/WSL#7022). Prototype on real laptops; fall back to an at-logon trigger plus
-  Windows auto-logon guidance if S4U does not work. Tracked in a GitHub issue.
+  Windows auto-logon guidance if S4U does not work. Tracked in issue #5.
 - Confirm that BentoPDF's air-gapped build works fully offline (no CDN fetches).
 - ~~Confirm that Actual Budget works behind Caddy on a subdomain with no further headers.~~ Resolved
   (SHH-2). Tested `actualbudget/actual-server:26.10.0` behind `caddy:2.11.7` on a `tls internal`
