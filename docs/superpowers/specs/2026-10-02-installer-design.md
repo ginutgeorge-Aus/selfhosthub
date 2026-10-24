@@ -187,9 +187,12 @@ registers a deSEC `<name>.dedyn.io`; the agent keeps both A records and both wil
 and the dashboard shows a "backup link" for each app. This is the only option that works on phones
 with no router or device changes and stays at $0. Rejected: a local DNS resolver on the laptop (needs
 a router DHCP change, and the whole house loses DNS when the laptop sleeps) and hosts-file guidance
-(phones can't edit hosts files). Catch: browser data is per-origin, so switching to the backup link
-means signing in again and re-syncing from the server, which holds the data. Both providers down at
-once is still unhandled.
+(phones can't edit hosts files). Catch: browser data is per-origin and Actual Budget is local-first,
+so switching to the backup link means signing in again and downloading the budget from the sync
+server. Only changes already synced come across; edits made under the other name that never reached
+the server are missing there until that origin syncs again. Before beta: define how the dashboard
+warns about this and how conflicts are handled, and test a switch with an unsynced local edit. Both
+providers down at once is still unhandled.
 
 ## 6. App catalog
 
