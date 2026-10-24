@@ -182,6 +182,15 @@ Installing an app needs internet. Running apps need no internet while the certif
 exist. Actual Budget has no fallback link, so it needs its hostname to resolve; it is the one app
 that can stop working during a DNS outage (accepted MVP limitation, issue #4).
 
+**Before beta (decided 2026-10-25):** an opt-in **backup name** under Advanced. The user also
+registers a deSEC `<name>.dedyn.io`; the agent keeps both A records and both wildcard certificates,
+and the dashboard shows a "backup link" for each app. This is the only option that works on phones
+with no router or device changes and stays at $0. Rejected: a local DNS resolver on the laptop (needs
+a router DHCP change, and the whole house loses DNS when the laptop sleeps) and hosts-file guidance
+(phones can't edit hosts files). Catch: browser data is per-origin, so switching to the backup link
+means signing in again and re-syncing from the server, which holds the data. Both providers down at
+once is still unhandled.
+
 ## 6. App catalog
 
 One YAML manifest per app in `catalog/`. CI builds a signed `catalog/index.json` from them.
@@ -344,4 +353,5 @@ research/   app catalog research
 - SignPath Foundation application: start alongside milestone 1, because approval takes weeks.
 - Backups are a non-goal for the MVP, but the viability research recommends pulling a simple USB
   backup into the beta. Decide before SHH-10.
+- Build the opt-in deSEC backup name for Actual Budget before beta (5.3, issue #4).
 - Validate with about 20 real non-technical users before growing the catalog beyond 5 apps.
