@@ -169,7 +169,11 @@ Budget does not.
 - **Fallback:** Caddy also serves each app over plain HTTP on its own LAN port (for example
   `http://<LAN-IP>:8101`), opened in the same firewall rules, so the links work when DNS can't be
   reached. Actual Budget needs a secure context, so it has no fallback and is marked "needs
-  internet name" (accepted MVP limitation).
+  internet name" (accepted MVP limitation). The plain-HTTP fallback is LAN-only (Private profile,
+  local subnet, no router port forwarding), but anyone on the home network could read its traffic,
+  including logins and files, so the dashboard labels every fallback link "not encrypted, use only
+  on your home network". This is an accepted trade-off: without it, a DNS outage or a router with
+  DNS-rebind protection would take every app offline.
 
 ### 5.3 Offline behavior
 
