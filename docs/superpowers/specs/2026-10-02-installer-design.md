@@ -312,7 +312,19 @@ research/   app catalog research
   unconfirmed (microsoft/WSL#7022). Prototype on real laptops; fall back to an at-logon trigger plus
   Windows auto-logon guidance if S4U does not work. Tracked in a GitHub issue.
 - Confirm that BentoPDF's air-gapped build works fully offline (no CDN fetches).
-- Confirm that Actual Budget works behind Caddy on a subdomain with no further headers.
+- ~~Confirm that Actual Budget works behind Caddy on a subdomain with no further headers.~~ Resolved
+  (SHH-2). Tested `actualbudget/actual-server:26.10.0` behind `caddy:2.11.7` on a `tls internal`
+  subdomain in headless Chromium: the app loads, the demo budget opens, and `isSecureContext` and
+  `crossOriginIsolated` are both `true`. No extra headers are needed. actual-server sets its own
+  COOP/COEP headers and Caddy passes them through. The Caddyfile is just:
+  ```
+  budget.<name>.duckdns.org {
+      reverse_proxy actual:5006
+  }
+  ```
+  Do not add header overrides or strip headers in the generated config. The only console error was a
+  service worker certificate error, caused by the untrusted self-signed test cert. Not re-tested with
+  a real Let's Encrypt cert.
 - SignPath Foundation application: start alongside milestone 1, because approval takes weeks.
 - Backups are a non-goal for the MVP, but the viability research recommends pulling a simple USB
   backup into the beta. Decide before SHH-10.
